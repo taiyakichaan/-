@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><title>推薦ロジック照合（Python版と比較）</title>
+<style>body{font:14px/1.6 system-ui,sans-serif;margin:24px;color:#0b1c1d}b.ok{color:#14684a}b.ng{color:#b3261e}pre{background:#eef1ef;padding:12px;white-space:pre-wrap}</style></head>
+<body><h1>推薦ロジック照合</h1><p>Python版で作った正解データ（80ケース）と、このブラウザで計算した結果を比べます。</p><p id="st">計算中…</p><pre id="log"></pre>
+<script type="module">
+import { loadAll, recommend } from "../js/recommend.js";
+const DB = await loadAll((p) => fetch(p).then((r) => r.json()), "../data/");
+const G = await (await fetch("golden_sample.json")).json();
+let ng = 0, maxd = 0; const log = [];
+for (const [i, { input, expected: E }] of G.cases.entries()) {
+  const R = recommend(DB, input);
+  const a = JSON.stringify(E.top5.map((t) => [t.region, t.pct, t.spots.map((s) => s.spot), t.why.map((w) => w.pt)])) + JSON.stringify(E.blocks.map((b) => [b.block, b.pct]));
+  const b = JSON.stringify(R.top5.map((t) => [t.region, t.pct, t.spots.map((s) => s.spot), t.why.map((w) => w.pt)])) + JSON.stringify(R.blocks.map((b) => [b.block, b.pct]));
+  E.proba.forEach((p, k) => (maxd = Math.max(maxd, Math.abs(p - R.proba[k]))));
+  if (a !== b || JSON.stringify(E.ranking) !== JSON.stringify(R.ranking)) { ng++; log.push(`NG #${i}\n py: ${a}\n js: ${b}`); }
+}
+const ok = !ng && maxd < 1e-9;
+document.getElementById("st").innerHTML = `${G.cases.length}ケース 不一致=${ng} 確率の最大差=${maxd.toExponential(2)} → <b class="${ok ? "ok" : "ng"}">${ok ? "OK" : "NG"}</b>`;
+document.getElementById("log").textContent = log.join("\n\n") || navigator.userAgent;
+document.title = ok ? "OK" : "NG";
+</script></body></html>
